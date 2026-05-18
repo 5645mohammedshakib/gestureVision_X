@@ -1,6 +1,6 @@
 # GestureVision X - GODMODE 🚀
 
-A next-generation AI-powered computer control, advanced computer vision, and surveillance operating system inspired by JARVIS, Cyberpunk 2077, and holographic HUDs.
+A next-generation AI-powered computer control, advanced computer vision, and surveillance operating system 
 
 ---
 
