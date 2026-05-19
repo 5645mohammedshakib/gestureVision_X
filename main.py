@@ -70,11 +70,11 @@ CAMERA_INDEX      = 0
 PROC_W, PROC_H    = 1280, 720
 # Beautiful HUD presentation resolution (1280x720 for flawless UI)
 FRAME_W, FRAME_H  = 1280, 720
-DET_CONF          = 0.75
-TRACK_CONF        = 0.75
-PRES_CONF         = 0.75
-FIST_HOLD         = 2.2      # seconds to EXIT
-WRITE_HOLD        = 1.5      # seconds to activate writing
+DET_CONF          = 0.45
+TRACK_CONF        = 0.45
+PRES_CONF         = 0.45
+FIST_HOLD         = 1.2      # seconds to EXIT
+WRITE_HOLD        = 1.0      # seconds to activate writing
 SCR_COOLDOWN      = 3.0      # seconds between screenshots
 
 # Screen coordinates for Air Mouse
@@ -384,7 +384,7 @@ def main():
                             pass
 
         # ── 3. Fist Exit Hold Timer ───────────────────────────────
-        if stable == "fist" and stability >= 0.85:
+        if stable == "fist":
             if fist_start is None:
                 fist_start = time.time()
             elif (time.time() - fist_start) >= FIST_HOLD:
@@ -397,7 +397,7 @@ def main():
             fist_start = None
 
         # ── 4. Air Writing Canvas Hold Timer ───────────────────────
-        if stable == "one_finger" and stability >= 0.9:
+        if stable == "one_finger":
             if write_hold_t is None:
                 write_hold_t = time.time()
             elif not writing_mode and (time.time() - write_hold_t) >= WRITE_HOLD:
