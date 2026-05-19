@@ -36,16 +36,18 @@ def _angle(a, b, c):
     return math.degrees(math.acos(cos_a))
 
 
-def get_finger_states(lm):
+def get_finger_states(lm, handedness="RIGHT HAND"):
     """
     Returns [Thumb, Index, Middle, Ring, Pinky] booleans.
     True = extended / up.
 
     Args:
         lm : list of 21 NormalizedLandmark (from Tasks API result)
+        handedness: string indicating "RIGHT HAND" or "LEFT HAND"
     """
-    # Thumb: compare x (mirrored webcam → tip to left of IP joint = extended)
-    thumb = lm[4].x < lm[3].x
+    # Thumb: Check if the thumb tip is further from the pinky base than the thumb IP joint.
+    # This distance check works perfectly regardless of left/right hand, mirroring, or palm/back facing.
+    thumb = _dist(lm[4], lm[17]) > _dist(lm[3], lm[17])
 
     # Four fingers: tip y < pip y  →  finger points upward
     fingers = [thumb]
@@ -73,11 +75,11 @@ def hand_openness(lm):
 # ─────────────────────────────────────────────────────────────
 # Main Gesture Classifier
 # ─────────────────────────────────────────────────────────────
-def detect_gesture(lm):
+def detect_gesture(lm, handedness="RIGHT HAND"):
     """
     Classifies 17 distinct gestures from 21 hand landmarks.
     """
-    fingers = get_finger_states(lm)
+    fingers = get_finger_states(lm, handedness)
     thumb, index, middle, ring, pinky = fingers
 
     # ── 1. Open Palm: all 5 up ────────────────────────────────────────────

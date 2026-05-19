@@ -481,6 +481,7 @@ def draw_hud(frame, state):
     wprog  = state.get("write_progress",0.0)
     show_guide = state.get("show_gesture_guide",False)
     show_full_guide = state.get("show_full_guide",False)
+    finger_count = state.get("finger_count", 0)
 
     lbl    = info.get("label","No Gesture")
     action = info.get("action","—")
@@ -521,6 +522,14 @@ def draw_hud(frame, state):
     
     txt_info = f" | {g_hint} | GESTURE: {lbl.upper()} ({int(stab*100)}%)"
     cv2.putText(frame, txt_info, (cx_dial + 82 + int(6.8 * len(handedness)), status_y), FONT, 0.35, C_WHITE, 1, cv2.LINE_AA)
+
+    # ── FINGER COUNT INDICATOR ─────────────────────────────────────────
+    fc_y = status_y + 35
+    cv2.putText(frame, "FINGERS UP:", (cx_dial + 16, fc_y), FONTB, 0.6, C_WHITE, 1, cv2.LINE_AA)
+    
+    # Glowing large number
+    cv2.putText(frame, str(finger_count), (cx_dial + 145, fc_y + 2), FONTB, 0.8, (0, 0, 0), 4, cv2.LINE_AA)
+    cv2.putText(frame, str(finger_count), (cx_dial + 145, fc_y + 2), FONTB, 0.8, C_CYAN, 2, cv2.LINE_AA)
 
     # ── 2. MINI SESSION OVERLAY (TOP RIGHT) ──────────────────────────
     if stats:

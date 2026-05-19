@@ -46,7 +46,7 @@ except ImportError:
     _HAS_KEYBOARD = False
 
 # Import local modules
-from gestures import detect_gesture, GESTURE_INFO, GestureSmoother
+from gestures import detect_gesture, GESTURE_INFO, GestureSmoother, get_finger_states
 from filters import apply_filter, crossfade
 from ai_tutor import ARIAAssistant
 from color_detector import draw_color_panel
@@ -285,11 +285,14 @@ def main():
             # Handedness comes as raw category: "Left" or "Right"
             handedness_raw = result.handedness[0][0].category_name
             handedness_label = "RIGHT HAND" if handedness_raw == "Left" else "LEFT HAND"
-            raw_gesture = detect_gesture(landmarks)
+            raw_gesture = detect_gesture(landmarks, handedness_label)
+            fingers = get_finger_states(landmarks, handedness_label)
+            finger_count = sum(fingers)
         else:
             landmarks = None
             handedness_label = "NO HAND"
             raw_gesture = "unknown"
+            finger_count = 0
 
         stable    = smoother.update(raw_gesture)
         stability = smoother.stability
@@ -552,7 +555,8 @@ def main():
             "write_progress": (time.time() - write_hold_t) / WRITE_HOLD if write_hold_t else 0.0,
             "show_gesture_guide": show_gesture_guide,
             "show_full_guide": show_full_guide,
-            "handedness_label": handedness_label
+            "handedness_label": handedness_label,
+            "finger_count": finger_count
         }
         
         # Render clean HUD
