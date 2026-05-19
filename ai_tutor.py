@@ -286,14 +286,18 @@ class ARIAAssistant:
         self.thought_stream.append(f"Vocal Matrix: {text[:28]}...")
 
     # ── Public API ─────────────────────────────────────────────
-    def update(self, gesture, stability):
+    def update(self, gesture, stability, second_gesture="unknown"):
         """Call each frame. Updates messages and tutorial progress."""
         now = time.time()
         self.orbital_angle += 0.1
         self.compute_load = round(12.0 + 3.0 * random.random() + (5.0 if gesture != "unknown" else 0.0), 1)
 
         # Reactive cognitive state and logs
-        if gesture != "unknown":
+        if second_gesture != "unknown":
+            self.cognitive_state = "GODMODE"
+            if "Dual hand matrix linked" not in self.thought_stream:
+                self.thought_stream.append("Dual hand matrix linked")
+        elif gesture != "unknown":
             if stability < 0.85:
                 self.cognitive_state = "STABILIZING"
                 if random.random() < 0.015:
@@ -304,7 +308,9 @@ class ARIAAssistant:
             self.cognitive_state = "ACTIVE"
 
         # Intent forecasting engine
-        if gesture == "one_finger":
+        if second_gesture != "unknown":
+            self.intent_forecast = "DUAL COMMAND MULTIPLEX"
+        elif gesture == "one_finger":
             self.intent_forecast = "AIR WRITING / TUNING"
         elif gesture == "fist":
             self.intent_forecast = "SHUTDOWN PAYLOAD REQUEST"
@@ -323,11 +329,15 @@ class ARIAAssistant:
             if len(self.combo_history) > 3:
                 self.combo_history.pop(0)
             
+            from utils import play_beep_async
+            play_beep_async("detect")
+            
             # Check for combos
             if self.combo_history == ["open_palm", "peace", "thumbs_up"]:
                 self.active_combo_msg = "FILTER SEQUENCE MATCHED"
                 self.last_combo_t = now
                 self.speak("Spectrum shift overload authorized.")
+                play_beep_async("combo")
                 self.thought_stream.append("COMBO: Palm -> Peace -> Thumbs Up")
             elif self.combo_history == ["one_finger", "ok", "peace"]:
                 self.active_combo_msg = "PRECISION CALIBRATION"
@@ -410,6 +420,8 @@ class ARIAAssistant:
                     self.message = f"CHALLENGE PASSED! STREAK: {self.challenge_streak}"
                     self.sub_message = f"Neural feedback calibration complete."
                     self.thought_stream.append(f"CALIBRATION ACCURACY: 99.8%")
+                    from utils import play_beep_async
+                    play_beep_async("success")
             else:
                 self.challenge_start_t = None
 
@@ -451,6 +463,8 @@ class ARIAAssistant:
                 self.speak(random.choice(ARIA_ENCOURAGE))
                 self.tut_step    += 1
                 self.tut_hold_t   = None
+                from utils import play_beep_async
+                play_beep_async("success")
                 if self.tut_step < len(TUTORIAL_STEPS):
                     nxt = TUTORIAL_STEPS[self.tut_step]
                     self.message     = f"Step {self.tut_step+1}/{len(TUTORIAL_STEPS)}: {nxt['name']}"

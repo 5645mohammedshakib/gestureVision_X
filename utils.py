@@ -7,6 +7,31 @@ Glassmorphism panels, sharp text, no cut-offs, stable layout.
 import cv2, numpy as np, os, time, math
 from datetime import datetime
 from collections import deque
+import winsound
+import threading
+
+def play_beep_async(beep_type):
+    """Asynchronous retro-futuristic sound effects generator for sci-fi HUD."""
+    def beep_worker():
+        try:
+            if beep_type == "startup":
+                winsound.Beep(900, 100)
+                winsound.Beep(1300, 100)
+                winsound.Beep(1800, 150)
+            elif beep_type == "detect":
+                winsound.Beep(2100, 40)
+            elif beep_type == "combo":
+                winsound.Beep(1600, 50)
+                winsound.Beep(2300, 80)
+            elif beep_type == "success":
+                winsound.Beep(1100, 80)
+                winsound.Beep(1500, 80)
+                winsound.Beep(1900, 120)
+            elif beep_type == "lost":
+                winsound.Beep(380, 180)
+        except Exception:
+            pass
+    threading.Thread(target=beep_worker, daemon=True).start()
 
 SCREENSHOT_DIR = "screenshots"
 VIDEO_DIR      = "recordings"
@@ -237,18 +262,28 @@ class WritingCanvas:
 # ─────────────────────────────────────────────────────────────
 # Skeleton with Glow
 # ─────────────────────────────────────────────────────────────
-def draw_skeleton(frame, landmarks, stability=1.0):
+def draw_skeleton(frame, landmarks, stability=1.0, hand_label="RIGHT HAND"):
     from gestures import HAND_CONNECTIONS
     H,W=frame.shape[:2]
     br=int(140+stability*115)
-    jcol=(0,br,int(br*0.65))
-    lcol=(int(br*0.3),int(br*0.6),int(br*0.4))
+    
+    # Dual-Hand Adaptive Palette (Left Hand = Blue/Green theme, Right Hand = Pink/Cyan theme)
+    if "LEFT" in hand_label.upper():
+        jcol = (br, int(br*0.4), 20)           # Blue dominant joint accent
+        lcol = (int(br*0.6), int(br*0.3), 10)  # Blue joint connections
+        tcol = (255, 120, 80)                  # Label text color
+        box_border = (br, int(br*0.6), 40)
+    else:
+        jcol = (0, br, int(br*0.65))           # Cyan/Green dominant joint accent
+        lcol = (int(br*0.3), int(br*0.6), int(br*0.4)) # Cyan/Green joint connections
+        tcol = (80, 240, 255)                  # Label text color
+        box_border = (0, br, int(br*0.6))
 
     glow=np.zeros_like(frame)
     for a,b in HAND_CONNECTIONS:
         p1=(int(landmarks[a].x*W),int(landmarks[a].y*H))
         p2=(int(landmarks[b].x*W),int(landmarks[b].y*H))
-        cv2.line(glow,p1,p2,(0,br,80),10,cv2.LINE_AA)
+        cv2.line(glow,p1,p2,jcol,10,cv2.LINE_AA)
     cv2.addWeighted(cv2.GaussianBlur(glow,(17,17),0),0.35,frame,1.0,0,frame)
 
     for a,b in HAND_CONNECTIONS:
@@ -268,23 +303,24 @@ def draw_skeleton(frame, landmarks, stability=1.0):
         lm8 = landmarks[8]
         cx8, cy8 = int(lm8.x * W), int(lm8.y * H)
         tx8, ty8 = cx8 - 110, cy8 - 45
-        cv2.line(frame, (cx8, cy8), (tx8 + 70, ty8 + 10), (0, br, int(br*0.8)), 1, cv2.LINE_AA)
-        cv2.circle(frame, (cx8, cy8), 4, (0, br, 255), 1, cv2.LINE_AA)
+        cv2.line(frame, (cx8, cy8), (tx8 + 70, ty8 + 10), box_border, 1, cv2.LINE_AA)
+        cv2.circle(frame, (cx8, cy8), 4, tcol, 1, cv2.LINE_AA)
         # Background box for details
         cv2.rectangle(frame, (tx8, ty8 - 10), (tx8 + 135, ty8 + 16), (10, 8, 16), -1)
-        cv2.rectangle(frame, (tx8, ty8 - 10), (tx8 + 135, ty8 + 16), (0, br, int(br*0.6)), 1, cv2.LINE_AA)
-        cv2.putText(frame, "NODE_08 [INDEX]", (tx8 + 6, ty8 + 1), FONT, 0.28, (0, br, 255), 1, cv2.LINE_AA)
+        cv2.rectangle(frame, (tx8, ty8 - 10), (tx8 + 135, ty8 + 16), box_border, 1, cv2.LINE_AA)
+        hand_tag = "L" if "LEFT" in hand_label.upper() else "R"
+        cv2.putText(frame, f"NODE_08 [{hand_tag}_IDX]", (tx8 + 6, ty8 + 1), FONT, 0.28, tcol, 1, cv2.LINE_AA)
         cv2.putText(frame, f"X:{lm8.x:.2f} Y:{lm8.y:.2f} Z:{lm8.z:.2f}", (tx8 + 6, ty8 + 11), FONT, 0.26, (200, 200, 200), 1, cv2.LINE_AA)
 
         # Pinky Tip node 20
         lm20 = landmarks[20]
         cx20, cy20 = int(lm20.x * W), int(lm20.y * H)
         tx20, ty20 = cx20 + 40, cy20 - 45
-        cv2.line(frame, (cx20, cy20), (tx20, ty20 + 10), (200, 60, 240), 1, cv2.LINE_AA)
-        cv2.circle(frame, (cx20, cy20), 4, (240, 80, 255), 1, cv2.LINE_AA)
+        cv2.line(frame, (cx20, cy20), (tx20, ty20 + 10), (200, 60, 240) if hand_tag == "R" else (220, 100, 50), 1, cv2.LINE_AA)
+        cv2.circle(frame, (cx20, cy20), 4, (240, 80, 255) if hand_tag == "R" else (240, 120, 80), 1, cv2.LINE_AA)
         cv2.rectangle(frame, (tx20, ty20 - 10), (tx20 + 135, ty20 + 16), (10, 8, 16), -1)
-        cv2.rectangle(frame, (tx20, ty20 - 10), (tx20 + 135, ty20 + 16), (200, 60, 240), 1, cv2.LINE_AA)
-        cv2.putText(frame, "NODE_20 [PINKY]", (tx20 + 6, ty20 + 1), FONT, 0.28, (240, 80, 255), 1, cv2.LINE_AA)
+        cv2.rectangle(frame, (tx20, ty20 - 10), (tx20 + 135, ty20 + 16), (200, 60, 240) if hand_tag == "R" else (220, 100, 50), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"NODE_20 [{hand_tag}_PNK]", (tx20 + 6, ty20 + 1), FONT, 0.28, (240, 80, 255) if hand_tag == "R" else (240, 120, 80), 1, cv2.LINE_AA)
         cv2.putText(frame, f"X:{lm20.x:.2f} Y:{lm20.y:.2f} Z:{lm20.z:.2f}", (tx20 + 6, ty20 + 11), FONT, 0.26, (200, 200, 200), 1, cv2.LINE_AA)
 
 

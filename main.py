@@ -206,7 +206,8 @@ def main():
     canvas      = WritingCanvas(FRAME_W, FRAME_H)
     particles   = ParticleSystem(maxp=130)
     aria        = ARIAAssistant()
-    # colorizer   = Colorizer() # Disabled to prevent download delay on startup
+    from utils import play_beep_async
+    play_beep_async("startup")
     
     matrix      = MatrixRain(FRAME_W, FRAME_H)
     gaze_mouse  = GazeMouseFilter()
@@ -281,24 +282,36 @@ def main():
         rgb.flags.writeable = True
 
         if result.hand_landmarks and result.handedness:
+            # Primary Hand
             landmarks = result.hand_landmarks[0]
-            # Handedness comes as raw category: "Left" or "Right"
             handedness_raw = result.handedness[0][0].category_name
             handedness_label = "RIGHT HAND" if handedness_raw == "Left" else "LEFT HAND"
             raw_gesture = detect_gesture(landmarks, handedness_label)
             fingers = get_finger_states(landmarks, handedness_label)
             finger_count = sum(fingers)
+
+            # Secondary Hand
+            if len(result.hand_landmarks) > 1:
+                landmarks_sec = result.hand_landmarks[1]
+                handedness_raw_sec = result.handedness[1][0].category_name
+                handedness_label_sec = "RIGHT HAND" if handedness_raw_sec == "Left" else "LEFT HAND"
+                raw_gesture_sec = detect_gesture(landmarks_sec, handedness_label_sec)
+                fingers_sec = get_finger_states(landmarks_sec, handedness_label_sec)
+                finger_count += sum(fingers_sec)
+            else:
+                raw_gesture_sec = "unknown"
         else:
             landmarks = None
             handedness_label = "NO HAND"
             raw_gesture = "unknown"
+            raw_gesture_sec = "unknown"
             finger_count = 0
 
         stable    = smoother.update(raw_gesture)
         stability = smoother.stability
 
         stats.log_gesture(stable)
-        aria.update(stable, stability)
+        aria.update(stable, stability, second_gesture=raw_gesture_sec)
 
         # ── 1. Gesture System Mode Toggles ──────────────────────────
         info       = GESTURE_INFO.get(stable, GESTURE_INFO["unknown"])
@@ -524,8 +537,11 @@ def main():
             txt(out, "EMERGENCY SYSTEM LOCKDOWN ACTIVE", FRAME_W // 2 - 300, FRAME_H // 2 - 60, (50, 50, 255), 0.95, 3)
 
         # ── 8. Draw Futuristic Overlay Elements & Particle Trails ─────
-        if result.hand_landmarks:
-            draw_skeleton(out, result.hand_landmarks[0], stability)
+        if result.hand_landmarks and result.handedness:
+            for idx, hand_lms in enumerate(result.hand_landmarks):
+                hand_raw = result.handedness[idx][0].category_name
+                hand_lbl = "RIGHT HAND" if hand_raw == "Left" else "LEFT HAND"
+                draw_skeleton(out, hand_lms, stability, hand_lbl)
 
         if landmarks:
             # Emit neon particles from index tip (8)
