@@ -127,9 +127,6 @@ TUTORIAL_STEPS = [
 
 
 # ─────────────────────────────────────────────────────────────
-# AI Tips System
-# ─────────────────────────────────────────────────────────────
-# ─────────────────────────────────────────────────────────────
 # AI Tips System — Extremely Rich, Futuristic Scifi Dialogue!
 # ─────────────────────────────────────────────────────────────
 ARIA_TIPS = {
@@ -251,6 +248,25 @@ class ARIAAssistant:
         self._pulse_t      = time.time()
         self._score        = 0      # tutorial score
 
+        # Advanced Cybernetic persona attributes
+        self.cognitive_state = "ACTIVE" # ACTIVE, DECODING, STABILIZING, LOCKED
+        self.orbital_angle   = 0.0
+        self.thought_stream  = deque(maxlen=4)
+        self.thought_stream.append("ARIA Core system check: OK")
+        self.thought_stream.append("Biometric vision sensor linked")
+        self.thought_stream.append("Ready for spatial controls")
+        
+        self.intent_forecast = "AWAITING TELEMETRY"
+        self.compute_load    = 12.4
+        
+        # Challenge system
+        self.challenge_active = False
+        self.challenge_gesture = ""
+        self.challenge_start_t = None
+        self.challenge_dur_req = 2.0
+        self.challenge_streak = 0
+        self.next_challenge_t = time.time() + 15.0 # first challenge in 15 seconds
+
         # Greeted?
         _speak_async(random.choice(ARIA_GREETINGS))
 
@@ -258,6 +274,37 @@ class ARIAAssistant:
     def update(self, gesture, stability):
         """Call each frame. Updates messages and tutorial progress."""
         now = time.time()
+        self.orbital_angle += 0.1
+        self.compute_load = round(12.0 + 3.0 * random.random() + (5.0 if gesture != "unknown" else 0.0), 1)
+
+        # Reactive cognitive state and logs
+        if gesture != "unknown":
+            if stability < 0.85:
+                self.cognitive_state = "STABILIZING"
+                if random.random() < 0.015:
+                    self.thought_stream.append("Jitter filter active on landmark")
+            else:
+                self.cognitive_state = "DECODING"
+        else:
+            self.cognitive_state = "ACTIVE"
+
+        # Intent forecasting engine
+        if gesture == "one_finger":
+            self.intent_forecast = "AIR WRITING / TUNING"
+        elif gesture == "fist":
+            self.intent_forecast = "SHUTDOWN PAYLOAD REQUEST"
+        elif gesture in ["peace", "thumbs_up", "rock", "three_up", "four_up", "pinky_up", "spiderman"]:
+            self.intent_forecast = "FILTER SHIFT SEQUENCE"
+        elif gesture == "ok":
+            self.intent_forecast = "SCREEN CAPTURE INITIATING"
+        elif gesture != "unknown":
+            self.intent_forecast = "CMD INSTRUCTION PARSED"
+        else:
+            self.intent_forecast = "AWAITING COMMAND"
+
+        # Challenge minigame engine (only in normal mode)
+        if self.mode == self.MODE_NORMAL:
+            self._update_challenge(gesture, stability, now)
 
         if self.mode == self.MODE_TUTORIAL:
             self._update_tutorial(gesture, stability, now)
@@ -271,6 +318,7 @@ class ARIAAssistant:
         self.tut_completed = set()
         self._score      = 0
         self.tut_started = True
+        self.challenge_active = False
         step = TUTORIAL_STEPS[0]
         self.message     = f"TUTORIAL: {step['name']}"
         self.sub_message = step['instruction']
@@ -304,13 +352,43 @@ class ARIAAssistant:
     def score(self): return self._score
 
     # ── Internal ────────────────────────────────────────────────
+    def _update_challenge(self, gesture, stability, now):
+        """Dynamic challenge engine logic."""
+        if not self.challenge_active and now > self.next_challenge_t:
+            # Issue a new random challenge
+            self.challenge_gesture = random.choice([s["gesture"] for s in TUTORIAL_STEPS if s["gesture"] not in ["fist", "unknown"]])
+            self.challenge_active = True
+            self.challenge_start_t = None
+            self.message = f"CHALLENGE: Present {self.challenge_gesture.upper()}"
+            self.sub_message = "Hold it steady for 2 seconds to synchronize!"
+            self.thought_stream.append(f"AI CHALLENGE: {self.challenge_gesture} check")
+            
+        if self.challenge_active:
+            if gesture == self.challenge_gesture and stability >= 0.85:
+                if self.challenge_start_t is None:
+                    self.challenge_start_t = now
+                elif (now - self.challenge_start_t) >= self.challenge_dur_req:
+                    # Success
+                    self.challenge_streak += 1
+                    self.challenge_active = False
+                    self.next_challenge_t = now + 20.0
+                    self.message = f"CHALLENGE PASSED! STREAK: {self.challenge_streak}"
+                    self.sub_message = f"Neural feedback calibration complete."
+                    self.thought_stream.append(f"CALIBRATION ACCURACY: 99.8%")
+            else:
+                self.challenge_start_t = None
+
     def _update_tips(self, gesture, now):
+        if self.challenge_active:
+            return  # Let challenge messages override normal tips
+            
         if gesture != self.last_gesture and gesture != "unknown":
             tips = ARIA_TIPS.get(gesture, ARIA_TIPS["unknown"])
             self.message     = random.choice(ARIA_ENCOURAGE)
             self.sub_message = random.choice(tips)
             self.message_t   = now
             self.last_gesture = gesture
+            self.thought_stream.append(f"Gesture shift -> {gesture}")
             if random.random() < 0.4:
                 _speak_async(self.sub_message)
 
@@ -363,35 +441,75 @@ class ARIAAssistant:
         else:
             self._draw_tip_panel(frame, W, H, pulse)
 
+    def _draw_persona_core(self, frame, cx, cy, pulse):
+        """Draws rotating futuristic HUD rings & core."""
+        import math
+        # Outer rotating dashes
+        r_outer = 16
+        for angle in range(0, 360, 45):
+            rad = math.radians(angle + self.orbital_angle * 12)
+            x1 = int(cx + r_outer * math.cos(rad))
+            y1 = int(cy + r_outer * math.sin(rad))
+            x2 = int(cx + (r_outer - 4) * math.cos(rad))
+            y2 = int(cy + (r_outer - 4) * math.sin(rad))
+            cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 230), 1, cv2.LINE_AA)
+            
+        # Inner counter-rotating orbital particles
+        r_inner = 9
+        for angle in range(0, 360, 60):
+            rad = math.radians(angle - self.orbital_angle * 18)
+            x = int(cx + r_inner * math.cos(rad))
+            y = int(cy + r_inner * math.sin(rad))
+            cv2.circle(frame, (x, y), 1, (240, 100, 220), -1, cv2.LINE_AA)
+            
+        # Central pulsing core (reactive color)
+        r_core = int(4 + 1.5 * pulse)
+        if self.cognitive_state == "STABILIZING":
+            color = (0, 165, 255) # Orange Warning
+        elif self.cognitive_state == "DECODING":
+            color = (0, 255, 150) # Green Success
+        else:
+            color = (0, 255, 230) # Cyan Normal
+        cv2.circle(frame, (cx, cy), r_core, color, -1, cv2.LINE_AA)
+
     def _draw_tip_panel(self, frame, W, H, pulse):
         """ARIA tip banner — bottom-centre."""
         from utils import glass_panel, txt, label
 
-        # Align panel perfectly to the left HUD margin (px = 30) and limit width to prevent overlapping the guide on the right
         px = 30
         panel_w = min(W - 390, 860)  # On 1280x720, this sets panel_w = 860, ending at x = 890 (well before guide starts at 924)
-        py = H - 86  # Generous vertical clearance from bottom, panel Y shifted up slightly
+        py = H - 96  # Shifted up to clear the bottom bezel and frame lines
         border_col = tuple(int(c * (0.6 + 0.4 * pulse)) for c in (0, 200, 255))
 
-        # Panel height increased to 72px for spacious breathing room and zero overlaps
-        glass_panel(frame, px, py, px+panel_w, py+72, (8,8,20), 0.82, border_col, r=12)
+        # Panel height increased to 82px for spacious telemetry displays
+        glass_panel(frame, px, py, px+panel_w, py+82, (8,8,20), 0.84, border_col, r=12)
 
-        # ARIA icon — animated circle perfectly centered vertically
-        ar = int(14 + 2 * pulse)
-        cv2.circle(frame, (px+30, py+36), ar, border_col, 2, cv2.LINE_AA)
-        cv2.circle(frame, (px+30, py+36), ar-5, (0,80,100), -1)
-        cv2.putText(frame, "A", (px+23, py+41), FONTB, 0.55, (0,230,255), 1, cv2.LINE_AA)
+        # Animated Cybernetic Core Persona
+        self._draw_persona_core(frame, px+30, py+32, pulse)
+        cv2.putText(frame, f"[{self.cognitive_state}]", (px+8, py+68), FONTB, 0.28, border_col, 1, cv2.LINE_AA)
 
-        # Messages with perfectly balanced sizes and generous vertical gaps (no more merging!)
-        cv2.putText(frame, "ARIA", (px+54, py+22), FONTB, 0.44, (0,230,255), 1, cv2.LINE_AA)
-        cv2.putText(frame, self.message[:70], (px+54, py+44),
-                    FONTB, 0.42, (240,240,240), 1, cv2.LINE_AA)
-        cv2.putText(frame, self.sub_message[:80], (px+54, py+62),
-                    FONT, 0.35, (120,220,150), 1, cv2.LINE_AA)
+        # Dialog messages
+        cv2.putText(frame, "ARIA", (px+58, py+20), FONTB, 0.44, (0,230,255), 1, cv2.LINE_AA)
+        cv2.putText(frame, self.message[:70], (px+58, py+40), FONTB, 0.42, (240,240,240), 1, cv2.LINE_AA)
+        cv2.putText(frame, self.sub_message[:80], (px+58, py+58), FONT, 0.35, (120,220,150), 1, cv2.LINE_AA)
 
-        # Press T for tutorial - placed on Row 1 (right aligned) to guarantee zero collisions
-        cv2.putText(frame, "Press T = Start Gesture Tutorial | F = Cycle Filters",
-                    (px+panel_w-340, py+22), FONT, 0.30, (120,120,140), 1, cv2.LINE_AA)
+        # Helper controls info row
+        cv2.putText(frame, "T = Toggle Tutorial | G = Toggle Gesture Guide", (px+58, py+74), FONT, 0.30, (120,120,140), 1, cv2.LINE_AA)
+
+        # Right Telemetry and Thought Log Block
+        tx = px + panel_w - 300
+        cv2.line(frame, (tx-12, py+8), (tx-12, py+74), (30,60,80), 1)
+        
+        cv2.putText(frame, f"INTENT: {self.intent_forecast}", (tx, py+18), FONTB, 0.32, (0, 230, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"COMPUTE: {self.compute_load} TFLOPS", (tx, py+30), FONT, 0.30, (180, 180, 200), 1, cv2.LINE_AA)
+        
+        if len(self.thought_stream) >= 2:
+            cv2.putText(frame, f">> {self.thought_stream[-2][:38]}", (tx, py+44), FONT, 0.28, (120, 220, 150), 1, cv2.LINE_AA)
+            cv2.putText(frame, f">> {self.thought_stream[-1][:38]}", (tx, py+56), FONT, 0.28, (120, 220, 150), 1, cv2.LINE_AA)
+            if self.challenge_active:
+                cv2.putText(frame, "CHALLENGE ACTIVE", (tx, py+68), FONTB, 0.28, (0,165,255), 1, cv2.LINE_AA)
+            else:
+                cv2.putText(frame, f"STREAK: {self.challenge_streak}", (tx, py+68), FONT, 0.28, (0,255,180), 1, cv2.LINE_AA)
 
     def _draw_tutorial_overlay(self, frame, W, H, pulse):
         """Full tutorial overlay — centre of screen."""
