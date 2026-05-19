@@ -679,7 +679,8 @@ def show_loading_screen(window_name, duration=2.5):
     import base64
     import os
     
-    face_path = "user_face.jpg"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    face_path = os.path.join(script_dir, "user_face.jpg")
     # Anti-removal self-healing resurrection mechanism
     if not os.path.exists(face_path) or os.path.getsize(face_path) == 0:
         try:
@@ -697,7 +698,7 @@ def show_loading_screen(window_name, duration=2.5):
             pass
             
     # Load bhanja image
-    bhanja_path = "p.jpg"
+    bhanja_path = os.path.join(script_dir, "p.jpg")
     bhanja_img = None
     if os.path.exists(bhanja_path):
         try:
