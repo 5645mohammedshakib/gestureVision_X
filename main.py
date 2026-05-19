@@ -73,7 +73,7 @@ FRAME_W, FRAME_H  = 1280, 720
 DET_CONF          = 0.45
 TRACK_CONF        = 0.45
 PRES_CONF         = 0.45
-FIST_HOLD         = 1.2      # seconds to EXIT
+FIST_HOLD         = 1.8      # seconds to EXIT
 WRITE_HOLD        = 1.0      # seconds to activate writing
 SCR_COOLDOWN      = 3.0      # seconds between screenshots
 
@@ -384,7 +384,7 @@ def main():
                             pass
 
         # ── 3. Fist Exit Hold Timer ───────────────────────────────
-        if stable == "fist":
+        if stable == "fist" and stability >= 0.75:
             if fist_start is None:
                 fist_start = time.time()
             elif (time.time() - fist_start) >= FIST_HOLD:

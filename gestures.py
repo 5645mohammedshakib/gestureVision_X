@@ -20,6 +20,11 @@ def _dist(a, b):
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
+def _dist3d(a, b):
+    """3D Euclidean distance between two landmarks (x, y, z) using MediaPipe depth."""
+    return math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2 + (a.z - b.z)**2)
+
+
 def _angle(a, b, c):
     """
     Angle (degrees) at landmark b, formed by a-b-c.
@@ -45,15 +50,14 @@ def get_finger_states(lm, handedness="RIGHT HAND"):
         lm : list of 21 NormalizedLandmark (from Tasks API result)
         handedness: string indicating "RIGHT HAND" or "LEFT HAND"
     """
-    # Thumb: Check if the thumb tip is further from the pinky base than the thumb IP joint.
-    thumb = _dist(lm[4], lm[17]) > _dist(lm[3], lm[17])
+    # Thumb: Check 3D distance from tip (4) to pinky base (17) vs IP joint (3) to pinky base (17)
+    thumb = _dist3d(lm[4], lm[17]) > _dist3d(lm[3], lm[17])
 
-    # Four fingers: combine wrist-distance check (rotation invariant) and vertical check (stable fallback)
+    # Four fingers: check 3D distance from tip to wrist (0) vs PIP to wrist (0) (absolute 3D rotation invariant!)
     fingers = [thumb]
     for tip, pip in [(8, 6), (12, 10), (16, 14), (20, 18)]:
-        dist_ok = _dist(lm[tip], lm[0]) > _dist(lm[pip], lm[0]) * 1.05
-        vert_ok = lm[tip].y < lm[pip].y
-        fingers.append(dist_ok or vert_ok)
+        dist_ok = _dist3d(lm[tip], lm[0]) > _dist3d(lm[pip], lm[0]) * 1.06
+        fingers.append(dist_ok)
     return fingers   # [Thumb, Index, Middle, Ring, Pinky]
 
 
